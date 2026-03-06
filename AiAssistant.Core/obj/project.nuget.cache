@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "qa3oHtkpjpM=",
+  "success": true,
+  "projectFilePath": "/home/francis/RiderProjects/AI-Assistant-POC/AiAssistant.Core/AiAssistant.Core.csproj",
+  "expectedPackageFiles": [
+    "/home/francis/.nuget/packages/microsoft.extensions.dependencyinjection.abstractions/10.0.3/microsoft.extensions.dependencyinjection.abstractions.10.0.3.nupkg.sha512",
+    "/home/francis/.nuget/packages/microsoft.extensions.logging.abstractions/10.0.3/microsoft.extensions.logging.abstractions.10.0.3.nupkg.sha512"
+  ],
+  "logs": []
+}
