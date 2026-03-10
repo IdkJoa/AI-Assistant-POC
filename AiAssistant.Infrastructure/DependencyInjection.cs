@@ -2,6 +2,7 @@ using AiAssistant.Domain.Interfaces;
 using AiAssistant.Infrastructure.Configuration;
 using AiAssistant.Infrastructure.DocumentProcessing;
 using AiAssistant.Infrastructure.Ollama;
+using AiAssistant.Infrastructure.OpenAi;
 using AiAssistant.Infrastructure.OpenAI;
 using AiAssistant.Infrastructure.Qdrant;
 using AiAssistant.Infrastructure.Services;
@@ -9,7 +10,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using OllamaSharp;
-using OpenAI;
 using Qdrant.Client;
 
 namespace AiAssistant.Infrastructure;
@@ -18,13 +18,7 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration config)
     {
-        var provider = config["AI:Provider"] ?? "Ollama";
-
-        if (provider == "OpenAI")
-            services.AddOpenAi(config);
-        else
-            services.AddOllama(config);
-        
+        AddGemini(services, config);
         AddAgentService(services);
         AddPDocumentProcessors(services);
         AddQdrant(services, config);
@@ -32,7 +26,7 @@ public static class DependencyInjection
         return services;
     }
 
-    public static void AddQdrant(this IServiceCollection services, IConfiguration config)
+    private static void AddQdrant(this IServiceCollection services, IConfiguration config)
     {
         services.Configure<QdrantOptions>(
             config.GetSection(QdrantOptions.SectionName));
@@ -57,7 +51,7 @@ public static class DependencyInjection
         services.AddScoped<IAgentService, AgentService>();
     }
     
-    // Models
+    // AI Models
     private static void AddOpenAi(
         this IServiceCollection services,
         IConfiguration configuration)
@@ -84,5 +78,16 @@ public static class DependencyInjection
 
         services.AddScoped<IEmbeddingService, OllamaEmbeddingService>();
         services.AddScoped<ILlmService, OllamaLlmService>();
+    }
+    
+    private static void AddGemini(
+        this IServiceCollection services,
+        IConfiguration config)
+    {
+        services.Configure<GeminiOptions>(
+            config.GetSection(GeminiOptions.SectionName));
+
+        services.AddScoped<IEmbeddingService, GeminiEmbeddingService>();
+        services.AddScoped<ILlmService, GeminiLlmService>();
     }
 }
