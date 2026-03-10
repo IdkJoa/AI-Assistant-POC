@@ -1,4 +1,4 @@
-namespace SG.AIAssistant.Infrastructure.Configuration;
+namespace AiAssistant.Infrastructure.Configuration;
 
 public sealed class QdrantOptions
 {
