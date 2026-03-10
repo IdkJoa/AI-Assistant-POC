@@ -1,3 +1,4 @@
+using System.Globalization;
 using AiAssistant.Domain.Common.OperationResult;
 using AiAssistant.Domain.Domain.Documents;
 using AiAssistant.Domain.Domain.ValueObjects;
@@ -5,13 +6,10 @@ using AiAssistant.Domain.Interfaces;
 using AiAssistant.Infrastructure.Configuration;
 using AiAssistant.Infrastructure.Ollama;
 using Google.Protobuf.Collections;
-using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Qdrant.Client;
 using Qdrant.Client.Grpc;
-using SG.AIAssistant.Infrastructure.Configuration;
-//using DocId = AiAssistant.Domain.Domain.ValueObjects.DocumentId;
 
 namespace AiAssistant.Infrastructure.Qdrant;
 
@@ -37,6 +35,7 @@ public class QdrantVectorStore : IVectorStore
     {
         try
         {
+            _logger.LogInformation("Starting to upsert chunks into Qdrant");
             var pointsList = new List<PointStruct>();
 
             foreach (var c in chunks.Where(c => c.Embedding is { Length: > 0 }))
@@ -80,10 +79,12 @@ public class QdrantVectorStore : IVectorStore
     {
         try
         {
+            _logger.LogInformation("Starting to search Qdrant chunks");
             var results = await _qdrantClient.SearchAsync(
                 _options.CollectionName,
                 queryEmbedding,
                 limit: (ulong)topK,
+                scoreThreshold: 0.6f,
                 cancellationToken: cancellationToken);
             
             var chunks = results.Select(r => new DocumentChunk
@@ -112,6 +113,8 @@ public class QdrantVectorStore : IVectorStore
     {
         try
         {
+            _logger.LogInformation("Starting to ensure collection exists");
+            
             var collections = await _qdrantClient.ListCollectionsAsync(cancellationToken);
             if (collections.Any(c => c == _options.CollectionName))
                 return Result.Success();
@@ -135,6 +138,21 @@ public class QdrantVectorStore : IVectorStore
         }
     }
     
+    public async Task<Result> DeleteCollectionAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            await _qdrantClient.DeleteCollectionAsync(_options.CollectionName, cancellationToken: ct);
+            _logger.LogInformation("Deleted Qdrant collection: {Collection}", _options.CollectionName);
+            return Result.Success();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete collection");
+            return Result.Failure(Error.VectorStoreFailure(ex.Message));
+        }
+    }
+    
     private static string GetString(MapField<string, Value> payload, string key) =>
         payload.TryGetValue(key, out var val) ? GetStringValue(val) : string.Empty;
 
@@ -147,7 +165,7 @@ public class QdrantVectorStore : IVectorStore
     {
         Value.KindOneofCase.StringValue  => val.StringValue,
         Value.KindOneofCase.IntegerValue => val.IntegerValue.ToString(),
-        Value.KindOneofCase.DoubleValue  => val.DoubleValue.ToString(),
+        Value.KindOneofCase.DoubleValue  => val.DoubleValue.ToString(CultureInfo.InvariantCulture),
         Value.KindOneofCase.BoolValue    => val.BoolValue.ToString(),
         _                                => string.Empty
     };

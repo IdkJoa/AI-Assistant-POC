@@ -1,17 +1,17 @@
 using AiAssistant.Domain.Common.OperationResult;
 using AiAssistant.Domain.Domain.Agent;
+using AiAssistant.Domain.Domain.Documents;
 using AiAssistant.Domain.Interfaces;
 using AiAssistant.Domain.Tools;
-using AiAssistant.Infrastructure.Ollama;
 using Microsoft.Extensions.Logging;
 
-namespace AiAssistant.Domain.Services;
+namespace AiAssistant.Infrastructure.Services;
 
 public sealed class AgentService : IAgentService
 {
     private readonly IEmbeddingService _embeddingService;
     private readonly IVectorStore _vectorStore;
-    private readonly OllamaLlmService _llmService;
+    private readonly ILlmService _llmService;
     private readonly ILogger<AgentService> _logger;
 
     private const string SystemPrompt = """
@@ -36,7 +36,7 @@ public sealed class AgentService : IAgentService
     public AgentService(
         IEmbeddingService embeddingService,
         IVectorStore vectorStore,
-        OllamaLlmService llmService,
+        ILlmService llmService,
         ILogger<AgentService> logger)
     {
         _embeddingService = embeddingService;
@@ -51,12 +51,12 @@ public sealed class AgentService : IAgentService
     {
         _logger.LogInformation("Processing agent query: {Question}", query.Question);
 
-        // ── Paso 1: Convertir la pregunta en embedding ─────────────────────
+        // Convert into embedding 
         var embedResult = await _embeddingService.GenerateAsync(query.Question, ct);
         if (embedResult.IsFailure)
             return Result<AgentResponse>.Failure(embedResult.Error);
 
-        // ── Paso 2: Buscar chunks relevantes en Qdrant ─────────────────────
+        // Search relevant chunks in Qdrant 
         var searchResult = await _vectorStore.SearchAsync(
             embedResult.Value!,
             query.MaxContextChunks,
@@ -78,8 +78,7 @@ public sealed class AgentService : IAgentService
                 GeneratedAt  = DateTime.UtcNow
             });
         }
-
-        // ── Paso 3: Ejecutar Tools ─────────────────────────────────────────
+        
         var toolCalls = new List<ToolCall>();
 
         var expiryResults = CheckDocumentExpiryTool.Execute(
@@ -115,15 +114,15 @@ public sealed class AgentService : IAgentService
                 });
         }
 
-        // ── Paso 4: Construir el prompt con contexto ───────────────────────
+        // Construct context prompy
         var userMessage = BuildUserMessage(query.Question, chunks, expiryResults);
 
-        // ── Paso 5: Llamar al LLM ──────────────────────────────────────────
+        // Call to LLM
         var llmResult = await _llmService.ChatAsync(SystemPrompt, userMessage, ct);
         if (llmResult.IsFailure)
             return Result<AgentResponse>.Failure(llmResult.Error);
 
-        // ── Paso 6: Construir y devolver la respuesta ──────────────────────
+        // Make and return the call 
         return Result<AgentResponse>.Success(new AgentResponse
         {
             Answer       = llmResult.Value!,
@@ -134,8 +133,7 @@ public sealed class AgentService : IAgentService
         });
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
-
+    // Helpers 
     private static string BuildUserMessage(
         string question,
         IEnumerable<DocumentChunk> chunks,
@@ -171,10 +169,10 @@ public sealed class AgentService : IAgentService
         {
             var statusLabel = r.Status switch
             {
-                ExpiryStatus.Expired => $"❌ VENCIDO hace {Math.Abs(r.DaysUntilExpiry)} días",
-                ExpiryStatus.Urgent  => $"⚠️ URGENTE - vence en {r.DaysUntilExpiry} días",
-                ExpiryStatus.Warning => $"📋 ATENCIÓN - vence en {r.DaysUntilExpiry} días",
-                _                    => "✅ OK"
+                ExpiryStatus.Expired => $"VENCIDO hace {Math.Abs(r.DaysUntilExpiry)} días",
+                ExpiryStatus.Urgent  => $"URGENTE - vence en {r.DaysUntilExpiry} días",
+                ExpiryStatus.Warning => $"ATENCIÓN - vence en {r.DaysUntilExpiry} días",
+                _                    => "OK"
             };
 
             sb.AppendLine($"- {r.FileName}: {statusLabel} ({r.ExpiryDate:dd/MM/yyyy})");
