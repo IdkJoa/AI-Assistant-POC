@@ -2,26 +2,25 @@ using AiAssistant.Domain.Common.OperationResult;
 using AiAssistant.Domain.Domain.Agent;
 using AiAssistant.Domain.Interfaces;
 using AiAssistant.Infrastructure.Configuration;
+using GenerativeAI;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using OpenAI;
-using OpenAI.Chat;
 
 namespace AiAssistant.Infrastructure.Services;
 
-public sealed class OpenAiLlmService : ILlmService
+public sealed class GeminiLlmService : ILlmService
 {
-    private readonly OpenAiOptions _options;
-    private readonly ILogger<OpenAiLlmService> _logger;
+    private readonly GeminiOptions _options;
+    private readonly ILogger<GeminiLlmService> _logger;
 
-    public OpenAiLlmService(
-        IOptions<OpenAiOptions> options,
-        ILogger<OpenAiLlmService> logger)
+    public GeminiLlmService(
+        IOptions<GeminiOptions> options,
+        ILogger<GeminiLlmService> logger)
     {
         _options = options.Value;
         _logger  = logger;
     }
-
+    
     public async Task<Result<string>> ChatAsync(
         string systemPrompt,
         string userMessage,
@@ -29,24 +28,24 @@ public sealed class OpenAiLlmService : ILlmService
     {
         try
         {
-            var client = new OpenAIClient(_options.ApiKey);
+            var client   = new GoogleAi(_options.ApiKey);
+            var model    = client.CreateGenerativeModel(_options.LlmModel);
+            var prompt   = $"{systemPrompt}\n\n{userMessage}";
+            var response = await model.GenerateContentAsync(prompt);
+            var content  = response.Text;
 
-            var messages = new List<ChatMessage>
-            {
-                new SystemChatMessage(systemPrompt),
-                new UserChatMessage(userMessage)
-            };
+            if (string.IsNullOrWhiteSpace(content))
+                return Result<string>.Failure(
+                    Error.LlmFailure("Gemini returned empty response."));
 
-            var response = await client
-                .GetChatClient(_options.LlmModel)
-                .CompleteChatAsync(messages, cancellationToken: ct);
+            _logger.LogInformation(
+                "Gemini response generated. Length: {Length} chars", content.Length);
 
-            var content = response.Value.Content[0].Text;
             return Result<string>.Success(content);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "OpenAI chat failed");
+            _logger.LogError(ex, "Gemini chat failed");
             return Result<string>.Failure(Error.LlmFailure(ex.Message));
         }
     }
