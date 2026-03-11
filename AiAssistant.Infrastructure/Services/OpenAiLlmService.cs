@@ -1,4 +1,5 @@
 using AiAssistant.Domain.Common.OperationResult;
+using AiAssistant.Domain.Domain.Agent;
 using AiAssistant.Domain.Interfaces;
 using AiAssistant.Infrastructure.Configuration;
 using Microsoft.Extensions.Logging;
@@ -48,5 +49,10 @@ public sealed class OpenAiLlmService : ILlmService
             _logger.LogError(ex, "OpenAI chat failed");
             return Result<string>.Failure(Error.LlmFailure(ex.Message));
         }
+    }
+
+    public async Task<Result<LlmResponse>> ChatWithToolsAsync(string systemPrompt, string userMessage, IReadOnlyList<ToolDefinition> tools, CancellationToken ct = default)
+    {
+        throw new NotImplementedException();
     }
 }

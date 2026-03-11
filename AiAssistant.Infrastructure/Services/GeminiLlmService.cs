@@ -1,4 +1,5 @@
 using AiAssistant.Domain.Common.OperationResult;
+using AiAssistant.Domain.Domain.Agent;
 using AiAssistant.Domain.Interfaces;
 using AiAssistant.Infrastructure.Configuration;
 using GenerativeAI;
@@ -47,5 +48,10 @@ public sealed class GeminiLlmService : ILlmService
             _logger.LogError(ex, "Gemini chat failed");
             return Result<string>.Failure(Error.LlmFailure(ex.Message));
         }
+    }
+
+    public async Task<Result<LlmResponse>> ChatWithToolsAsync(string systemPrompt, string userMessage, IReadOnlyList<ToolDefinition> tools, CancellationToken ct = default)
+    {
+        throw new NotImplementedException();
     }
 }
