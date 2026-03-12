@@ -1,9 +1,14 @@
+using AiAssistant.Api.EndPoints.Agent;
+using AiAssistant.Infrastructure;
+using AiAssistants.API.EndPoints.DocumentEndPoint;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(); 
+builder.Services.AddInfrastructure(builder.Configuration); 
 
 var app = builder.Build();
 
@@ -19,4 +24,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.MapAgentEndPoints();
+app.MapDocumentEndpoints();
 app.Run();
