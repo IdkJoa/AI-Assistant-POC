@@ -1,3 +1,4 @@
+using System.Text.Json;
 using AiAssistant.Domain.Common.OperationResult;
 using AiAssistant.Domain.Domain.Agent;
 using AiAssistant.Domain.Domain.Documents;
@@ -80,7 +81,8 @@ public sealed class AgentService : IAgentService
     var availableTools = new List<ToolDefinition>
     {
         new() { Name = "get_borrowers_with_approved_loans", Description = "Obtiene prestatarios con préstamos aprobados" },
-        new() { Name = "check_document_expiry",             Description = "Verifica vencimiento de documentos" }
+        new() { Name = "check_document_expiry",             Description = "Verifica vencimiento de documentos" },
+        new() { Name = "get_account_statement",             Description = "Obtiene el estado de cuenta de un party" }
     };
 
     // primera llamada a Claude con tools
@@ -100,7 +102,7 @@ public sealed class AgentService : IAgentService
         {
             _logger.LogInformation("Executing tool: {Tool}", toolUse.ToolName);
 
-            var toolResult = await ExecuteToolAsync(toolUse.ToolName, chunks, ct);
+            var toolResult = await ExecuteToolAsync(toolUse.ToolName, toolUse.InputJson, chunks, ct);
 
             toolResults[toolUse.ToolUseId] = toolResult;
             toolCalls.Add(new ToolCall
@@ -139,6 +141,7 @@ public sealed class AgentService : IAgentService
 
 private async Task<string> ExecuteToolAsync(
     string toolName,
+    string inputJson,
     IReadOnlyList<DocumentChunk> chunks,
     CancellationToken ct)
 {
@@ -146,6 +149,7 @@ private async Task<string> ExecuteToolAsync(
     {
         "get_borrowers_with_approved_loans" => await ExecuteGetBorrowersAsync(ct),
         "check_document_expiry"             => ExecuteCheckDocumentExpiry(chunks),
+        "get_account_statement" => await ExecuteGetAccountStatementAsync(inputJson, ct),
         _                                   => $"Tool {toolName} not found."
     };
 }
@@ -170,6 +174,50 @@ private static string ExecuteCheckDocumentExpiry(IReadOnlyList<DocumentChunk> ch
 
     return System.Text.Json.JsonSerializer.Serialize(expiryResults);
 }
+
+private async Task<string> ExecuteGetAccountStatementAsync(string inputJson, CancellationToken ct)
+{
+    var input = JsonSerializer.Deserialize<AccountStatementInput>(
+        inputJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+    if (input is null || string.IsNullOrWhiteSpace(input.PartyId))
+        return "Error: partyId es requerido para consultar el estado de cuenta.";
+
+    var result = await _mbSuiteClient.GetAccountStatementAsync(
+        input.PartyId,
+        input.CurrencyCode,
+        input.PageNumber,
+        input.PageSize,
+        ct);
+
+    if (result.IsFailure)
+        return $"Error al obtener estado de cuenta: {result.Error.Message}";
+
+    var statement = result.Value!;
+    var sb        = new System.Text.StringBuilder();
+
+    sb.AppendLine($"Estado de cuenta | Party: {input.PartyId}");
+    sb.AppendLine($"Página {statement.PageNumber} de {statement.TotalPages} | Total registros: {statement.PageCount}");
+    sb.AppendLine();
+
+    foreach (var tx in statement.Data)
+    {
+        sb.AppendLine($"[{tx.TransactionDate[..10]}] {tx.TransactionType}");
+        sb.AppendLine($"  Ref: {tx.ReferenceNo} | {tx.CurrencyCode}");
+        sb.AppendLine($"  Débito: {tx.DebitAmount:N2} | Crédito: {tx.CreditAmount:N2} | Balance: {tx.RunningBalance:N2}");
+        sb.AppendLine($"  Descripción: {tx.Description}");
+        sb.AppendLine();
+    }
+
+    return sb.ToString();
+}
+
+private sealed record AccountStatementInput(
+    string PartyId,
+    string? CurrencyCode = null,
+    int PageNumber = 1,
+    int PageSize   = 10
+);
 
 private async Task<Result<string>> SendToolResultsAsync(
     string systemPrompt,
@@ -221,7 +269,7 @@ private async Task<Result<string>> SendToolResultsAsync(
         var request = new MessageParameters
         {
             Model     = _claudeOptions.LlmModel,
-            MaxTokens = 2048,
+            MaxTokens = 8096,
             System    = [new SystemMessage(systemPrompt)],
             Messages  = messages
         };
