@@ -58,4 +58,46 @@ public sealed class MbSuiteClient
                 Error.LlmFailure(ex.Message));
         }
     }
+    
+    public async Task<Result<ArStatementResponse>> GetAccountStatementAsync(
+        string partyId,
+        string? currencyCode = null,
+        int pageNumber = 1,
+        int pageSize   = 10,
+        CancellationToken cancellationToken= default)
+    {
+        try
+        {
+            var url = $"api/ar/statement/{partyId}?pageNumber={pageNumber}&pageSize={pageSize}";
+
+            if (!string.IsNullOrWhiteSpace(currencyCode))
+                url += $"&currencyCode={currencyCode}";
+
+            var response = await _http.GetAsync(url, cancellationToken);
+            var body     = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            _logger.LogInformation("Statement Status: {Status}", response.StatusCode);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("GetAccountStatement failed. Status: {Status} | Body: {Body}",
+                    response.StatusCode, body);
+
+                return Result<ArStatementResponse>.Failure(
+                    Error.NotFound($"Failed to get statement. Status: {response.StatusCode}"));
+            }
+
+            var statement = JsonSerializer.Deserialize<ArStatementResponse>(body, JsonOptions);
+
+            return statement is null
+                ? Result<ArStatementResponse>.Failure(
+                    Error.LlmFailure("Failed to deserialize statement response."))
+                : Result<ArStatementResponse>.Success(statement);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetAccountStatement failed for partyId: {PartyId}", partyId);
+            return Result<ArStatementResponse>.Failure(Error.LlmFailure(ex.Message));
+        }
+    }
 }
