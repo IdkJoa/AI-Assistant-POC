@@ -10,17 +10,17 @@ namespace AiAssistant.Infrastructure.Services;
 
 public sealed class GeminiLlmService : ILlmService
 {
-    private readonly GeminiOptions _options;
     private readonly ILogger<GeminiLlmService> _logger;
+    private readonly GeminiOptions _options;
 
     public GeminiLlmService(
         IOptions<GeminiOptions> options,
         ILogger<GeminiLlmService> logger)
     {
         _options = options.Value;
-        _logger  = logger;
+        _logger = logger;
     }
-    
+
     public async Task<Result<string>> ChatAsync(
         string systemPrompt,
         string userMessage,
@@ -28,11 +28,11 @@ public sealed class GeminiLlmService : ILlmService
     {
         try
         {
-            var client   = new GoogleAi(_options.ApiKey);
-            var model    = client.CreateGenerativeModel(_options.LlmModel);
-            var prompt   = $"{systemPrompt}\n\n{userMessage}";
+            var client = new GoogleAi(_options.ApiKey);
+            var model = client.CreateGenerativeModel(_options.LlmModel);
+            var prompt = $"{systemPrompt}\n\n{userMessage}";
             var response = await model.GenerateContentAsync(prompt);
-            var content  = response.Text;
+            var content = response.Text;
 
             if (string.IsNullOrWhiteSpace(content))
                 return Result<string>.Failure(
@@ -50,7 +50,8 @@ public sealed class GeminiLlmService : ILlmService
         }
     }
 
-    public async Task<Result<LlmResponse>> ChatWithToolsAsync(string systemPrompt, string userMessage, IReadOnlyList<ToolDefinition> tools, CancellationToken ct = default)
+    public async Task<Result<LlmResponse>> ChatWithToolsAsync(string systemPrompt, string userMessage,
+        IReadOnlyList<ToolDefinition> tools, CancellationToken ct = default)
     {
         throw new NotImplementedException();
     }

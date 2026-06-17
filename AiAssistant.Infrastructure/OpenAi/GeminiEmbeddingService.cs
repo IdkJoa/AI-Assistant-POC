@@ -9,15 +9,15 @@ namespace AiAssistant.Infrastructure.OpenAi;
 
 public sealed class GeminiEmbeddingService : IEmbeddingService
 {
-    private readonly GeminiOptions _options;
     private readonly ILogger<GeminiEmbeddingService> _logger;
+    private readonly GeminiOptions _options;
 
     public GeminiEmbeddingService(
         IOptions<GeminiOptions> options,
         ILogger<GeminiEmbeddingService> logger)
     {
         _options = options.Value;
-        _logger  = logger;
+        _logger = logger;
     }
 
     public async Task<Result<float[]>> GenerateAsync(
@@ -26,10 +26,10 @@ public sealed class GeminiEmbeddingService : IEmbeddingService
     {
         try
         {
-            var client   = new GoogleAi(_options.ApiKey);
-            var model    = client.CreateEmbeddingModel(_options.EmbeddingModel);
+            var client = new GoogleAi(_options.ApiKey);
+            var model = client.CreateEmbeddingModel(_options.EmbeddingModel);
             var response = await model.EmbedContentAsync(text);
-            var vector   = response.Embedding.Values.Select(v => (float)v).ToArray();
+            var vector = response.Embedding.Values.Select(v => v).ToArray();
 
             if (vector.Length == 0)
                 return Result<float[]>.Failure(

@@ -15,7 +15,6 @@ public static class AgentEndPoints
         group.MapPost("/query", async ([FromBody] AgentQuery request,
         [FromServices] IAgentService agentService, CancellationToken ct) =>
         {
-
             //Create the AgentQuery object from the request
             var query = new AgentQuery{
                  Question = request.Question,

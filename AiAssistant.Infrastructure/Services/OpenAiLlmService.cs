@@ -11,15 +11,15 @@ namespace AiAssistant.Infrastructure.Services;
 
 public sealed class OpenAiLlmService : ILlmService
 {
-    private readonly OpenAiOptions _options;
     private readonly ILogger<OpenAiLlmService> _logger;
+    private readonly OpenAiOptions _options;
 
     public OpenAiLlmService(
         IOptions<OpenAiOptions> options,
         ILogger<OpenAiLlmService> logger)
     {
         _options = options.Value;
-        _logger  = logger;
+        _logger = logger;
     }
 
     public async Task<Result<string>> ChatAsync(
@@ -51,7 +51,8 @@ public sealed class OpenAiLlmService : ILlmService
         }
     }
 
-    public async Task<Result<LlmResponse>> ChatWithToolsAsync(string systemPrompt, string userMessage, IReadOnlyList<ToolDefinition> tools, CancellationToken ct = default)
+    public async Task<Result<LlmResponse>> ChatWithToolsAsync(string systemPrompt, string userMessage,
+        IReadOnlyList<ToolDefinition> tools, CancellationToken ct = default)
     {
         throw new NotImplementedException();
     }

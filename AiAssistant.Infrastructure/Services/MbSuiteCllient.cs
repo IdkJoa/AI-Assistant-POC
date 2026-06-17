@@ -7,18 +7,18 @@ namespace AiAssistant.Infrastructure.Services;
 
 public sealed class MbSuiteClient
 {
-    private readonly HttpClient _http;
-    private readonly ILogger<MbSuiteClient> _logger;
-
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
     };
 
+    private readonly HttpClient _http;
+    private readonly ILogger<MbSuiteClient> _logger;
+
     public MbSuiteClient(HttpClient http, ILogger<MbSuiteClient> logger)
     {
         _logger = logger;
-        _http   = http;
+        _http = http;
     }
 
     public async Task<Result<List<BorrowerWithLoansResponse>>> GetBorrowersWithApprovedLoansAsync(
@@ -31,8 +31,8 @@ public sealed class MbSuiteClient
             if (!response.IsSuccessStatusCode)
             {
                 var r = await _http.GetAsync("api/borrowers/with-approved-loans", ct);
-                var body     = await response.Content.ReadAsStringAsync(ct);
-                
+                var body = await response.Content.ReadAsStringAsync(ct);
+
                 _logger.LogWarning(
                     "MbSuite GetBorrowersWithApprovedLoans failed. Status: {Status}", response.StatusCode);
 
@@ -42,7 +42,7 @@ public sealed class MbSuiteClient
                     Error.NotFound($"Failed to get borrowers. Status: {response.StatusCode}"));
             }
 
-            var content   = await response.Content.ReadAsStringAsync(ct);
+            var content = await response.Content.ReadAsStringAsync(ct);
             var borrowers = JsonSerializer.Deserialize<List<BorrowerWithLoansResponse>>(
                 content, JsonOptions);
 
@@ -58,13 +58,13 @@ public sealed class MbSuiteClient
                 Error.LlmFailure(ex.Message));
         }
     }
-    
+
     public async Task<Result<ArStatementResponse>> GetAccountStatementAsync(
         string partyId,
         string? currencyCode = null,
         int pageNumber = 1,
-        int pageSize   = 10,
-        CancellationToken cancellationToken= default)
+        int pageSize = 10,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -74,7 +74,7 @@ public sealed class MbSuiteClient
                 url += $"&currencyCode={currencyCode}";
 
             var response = await _http.GetAsync(url, cancellationToken);
-            var body     = await response.Content.ReadAsStringAsync(cancellationToken);
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
 
             _logger.LogInformation("Statement Status: {Status}", response.StatusCode);
 

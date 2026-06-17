@@ -11,10 +11,15 @@ public sealed class PdfDocumentProcessor : IDocumentProcessor
 {
     private readonly ILogger<PdfDocumentProcessor> _logger;
 
-    public PdfDocumentProcessor(ILogger<PdfDocumentProcessor> logger) => _logger = logger;
+    public PdfDocumentProcessor(ILogger<PdfDocumentProcessor> logger)
+    {
+        _logger = logger;
+    }
 
-    public bool CanProcess(string contentType) =>
-        contentType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase);
+    public bool CanProcess(string contentType)
+    {
+        return contentType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase);
+    }
 
     public Task<Result<IReadOnlyList<DocumentChunk>>> ProcessAsync(
         Stream content,
@@ -24,7 +29,7 @@ public sealed class PdfDocumentProcessor : IDocumentProcessor
         try
         {
             _logger.LogInformation("Starting to process PDF: {Filename}", info.FileName);
-            
+
             using var pdf = PdfDocument.Open(content);
 
             var fullText = string.Join(' ', pdf.GetPages().Select(p => p.Text));
@@ -40,21 +45,23 @@ public sealed class PdfDocumentProcessor : IDocumentProcessor
         }
     }
 
-    private static IReadOnlyList<DocumentChunk> BuildChunks(string text, DocumentInfo info) =>
-        ChunkingService.Chunk(text)
+    private static IReadOnlyList<DocumentChunk> BuildChunks(string text, DocumentInfo info)
+    {
+        return ChunkingService.Chunk(text)
             .Select((content, index) => new DocumentChunk
             {
-                Id         = ChunkId.New(),
+                Id = ChunkId.New(),
                 DocumentId = info.DocumentId,
-                FileName   = info.FileName,
-                Content    = content,
+                FileName = info.FileName,
+                Content = content,
                 ChunkIndex = index,
-                Metadata   = new Dictionary<string, string>
+                Metadata = new Dictionary<string, string>
                 {
-                    ["source"]      = "pdf",
-                    ["indexed_at"]  = info.IndexedAt.ToString("O"),
+                    ["source"] = "pdf",
+                    ["indexed_at"] = info.IndexedAt.ToString("O"),
                     ["expiry_date"] = info.ExpiryDate?.ToString("O") ?? string.Empty
                 }
             })
             .ToList();
+    }
 }

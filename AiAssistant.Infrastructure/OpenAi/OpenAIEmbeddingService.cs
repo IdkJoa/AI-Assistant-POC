@@ -9,15 +9,15 @@ namespace AiAssistant.Infrastructure.OpenAI;
 
 public sealed class OpenAiEmbeddingService : IEmbeddingService
 {
-    private readonly OpenAiOptions _options;
     private readonly ILogger<OpenAiEmbeddingService> _logger;
+    private readonly OpenAiOptions _options;
 
     public OpenAiEmbeddingService(
         IOptions<OpenAiOptions> options,
         ILogger<OpenAiEmbeddingService> logger)
     {
         _options = options.Value;
-        _logger  = logger;
+        _logger = logger;
     }
 
     public async Task<Result<float[]>> GenerateAsync(
@@ -26,7 +26,7 @@ public sealed class OpenAiEmbeddingService : IEmbeddingService
     {
         try
         {
-            var client   = new OpenAIClient(_options.ApiKey);
+            var client = new OpenAIClient(_options.ApiKey);
             var response = await client
                 .GetEmbeddingClient(_options.EmbeddingModel)
                 .GenerateEmbeddingAsync(text, cancellationToken: ct);

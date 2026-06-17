@@ -11,29 +11,31 @@ namespace AiAssistant.Infrastructure.DocumentProcessing;
 public class WordDocumentProcessor : IDocumentProcessor
 {
     private readonly ILogger<WordDocumentProcessor> _logger;
-    
+
     public WordDocumentProcessor(ILogger<WordDocumentProcessor> logger)
     {
         _logger = logger;
     }
 
-    public bool CanProcess(string contentType) => contentType is
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document" or
-        "application/vnd.ms-word";
-    
+    public bool CanProcess(string contentType)
+    {
+        return contentType is
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document" or
+            "application/vnd.ms-word";
+    }
+
     public Task<Result<IReadOnlyList<DocumentChunk>>> ProcessAsync(
         Stream content, DocumentInfo info, CancellationToken ct = default)
     {
         try
         {
-            using var doc = WordprocessingDocument.Open(content, isEditable: false);
+            using var doc = WordprocessingDocument.Open(content, false);
             var body = doc.MainDocumentPart?.Document?.Body;
 
             if (body is null)
-            {
-                Result<IReadOnlyList<DocumentChunk>>.Failure(Error.DocumentProcessingFailure("Word document has no body."));
-            }
-            
+                Result<IReadOnlyList<DocumentChunk>>.Failure(
+                    Error.DocumentProcessingFailure("Word document has no body."));
+
             var fullText = string.Join(' ', body.Descendants<Text>().Select(t => t.Text));
             var chunks = BuildChunks(fullText, info);
 
@@ -42,25 +44,28 @@ public class WordDocumentProcessor : IDocumentProcessor
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to process Word document: {FileName}", info.FileName);
-            return Task.FromResult(Result<IReadOnlyList<DocumentChunk>>.Failure(Error.DocumentProcessingFailure(ex.Message)));
+            return Task.FromResult(
+                Result<IReadOnlyList<DocumentChunk>>.Failure(Error.DocumentProcessingFailure(ex.Message)));
         }
     }
-    
-    private IReadOnlyList<DocumentChunk> BuildChunks(string text, DocumentInfo info) =>
-        ChunkingService.Chunk(text)
+
+    private IReadOnlyList<DocumentChunk> BuildChunks(string text, DocumentInfo info)
+    {
+        return ChunkingService.Chunk(text)
             .Select((content, index) => new DocumentChunk
             {
-                Id         = ChunkId.New(),
+                Id = ChunkId.New(),
                 DocumentId = info.DocumentId,
-                FileName   = info.FileName,
-                Content    = content,
+                FileName = info.FileName,
+                Content = content,
                 ChunkIndex = index,
-                Metadata   = new Dictionary<string, string>
+                Metadata = new Dictionary<string, string>
                 {
-                    ["source"]      = "word",
-                    ["indexed_at"]  = info.IndexedAt.ToString("O"),
+                    ["source"] = "word",
+                    ["indexed_at"] = info.IndexedAt.ToString("O"),
                     ["expiry_date"] = info.ExpiryDate?.ToString("O") ?? string.Empty
                 }
             })
             .ToList();
+    }
 }

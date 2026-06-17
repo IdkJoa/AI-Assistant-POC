@@ -20,11 +20,11 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration config)
     {
         //AddGemini(services, config);
-        AddMbSuite(services, config);
-        AddClaude(services, config);
-        AddAgentService(services);
-        AddPDocumentProcessors(services);
-        AddQdrant(services, config);
+        services.AddMbSuite(config);
+        services.AddClaude(config);
+        services.AddAgentService();
+        services.AddPDocumentProcessors();
+        services.AddQdrant(config);
 
         return services;
     }
@@ -53,7 +53,7 @@ public static class DependencyInjection
     {
         services.AddScoped<IAgentService, AgentService>();
     }
-    
+
     // AI Models
     private static void AddOpenAi(
         this IServiceCollection services,
@@ -63,7 +63,7 @@ public static class DependencyInjection
         services.AddScoped<IEmbeddingService, OpenAiEmbeddingService>();
         services.AddScoped<ILlmService, OpenAiLlmService>();
     }
-    
+
     private static void AddOllama(
         this IServiceCollection services,
         IConfiguration configuration)
@@ -79,7 +79,7 @@ public static class DependencyInjection
         services.AddScoped<IEmbeddingService, OllamaEmbeddingService>();
         services.AddScoped<ILlmService, OllamaLlmService>();
     }
-    
+
     private static void AddGemini(
         this IServiceCollection services,
         IConfiguration config)
@@ -91,23 +91,23 @@ public static class DependencyInjection
 
     private static void AddClaude(this IServiceCollection services, IConfiguration configuration)
     {
-            services.Configure<ClaudeOptions>(configuration.GetSection(ClaudeOptions.SectionName));
-            services.Configure<OllamaOptions>(configuration.GetSection(OllamaOptions.SectionName));
+        services.Configure<ClaudeOptions>(configuration.GetSection(ClaudeOptions.SectionName));
+        services.Configure<OllamaOptions>(configuration.GetSection(OllamaOptions.SectionName));
 
-            services.AddSingleton(sp =>
-            {
-                var options = sp.GetRequiredService<IOptions<OllamaOptions>>().Value;
-                return new OllamaApiClient(new Uri(options.BaseUrl));
-            });
+        services.AddSingleton(sp =>
+        {
+            var options = sp.GetRequiredService<IOptions<OllamaOptions>>().Value;
+            return new OllamaApiClient(new Uri(options.BaseUrl));
+        });
 
-            services.AddScoped<IEmbeddingService, OllamaEmbeddingService>();
-            services.AddScoped<ILlmService, ClaudeLlmService>();
+        services.AddScoped<IEmbeddingService, OllamaEmbeddingService>();
+        services.AddScoped<ILlmService, ClaudeLlmService>();
     }
-    
+
     private static void AddMbSuite(this IServiceCollection services, IConfiguration config)
     {
         services.Configure<MbSuiteOptions>(config.GetSection(MbSuiteOptions.SectionName));
-        
+
         services.AddHttpClient<MbSuiteClient>((sp, http) =>
         {
             var options = sp.GetRequiredService<IOptions<MbSuiteOptions>>().Value;
@@ -115,7 +115,7 @@ public static class DependencyInjection
             http.DefaultRequestHeaders.Authorization =
                 new AuthenticationHeaderValue("Bearer", options.AccessToken.Trim());
             http.DefaultRequestHeaders.Add("X-Organization-Id", options.OrganizationId.Trim());
-            http.DefaultRequestHeaders.Add("X-Branch-Id",       options.BranchId.Trim());
+            http.DefaultRequestHeaders.Add("X-Branch-Id", options.BranchId.Trim());
         });
     }
 }

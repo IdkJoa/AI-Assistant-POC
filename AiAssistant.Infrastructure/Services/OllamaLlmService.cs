@@ -2,7 +2,6 @@ using AiAssistant.Domain.Common.OperationResult;
 using AiAssistant.Domain.Domain.Agent;
 using AiAssistant.Domain.Interfaces;
 using AiAssistant.Infrastructure.Configuration;
-using DocumentFormat.OpenXml.Office2019.Drawing.Model3D;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OllamaSharp;
@@ -13,17 +12,17 @@ namespace AiAssistant.Infrastructure.Services;
 public sealed class OllamaLlmService : ILlmService
 {
     private readonly OllamaApiClient _client;
-    private readonly OllamaOptions _options;
     private readonly ILogger<OllamaLlmService> _logger;
+    private readonly OllamaOptions _options;
 
     public OllamaLlmService(
         OllamaApiClient client,
         IOptions<OllamaOptions> options,
         ILogger<OllamaLlmService> logger)
     {
-        _client  = client;
+        _client = client;
         _options = options.Value;
-        _logger  = logger;
+        _logger = logger;
     }
 
     public async Task<Result<string>> ChatAsync(
@@ -36,14 +35,14 @@ public sealed class OllamaLlmService : ILlmService
             var messages = new List<Message>
             {
                 new() { Role = ChatRole.System, Content = systemPrompt },
-                new() { Role = ChatRole.User,   Content = userMessage  }
+                new() { Role = ChatRole.User, Content = userMessage }
             };
 
             var request = new ChatRequest
             {
-                Model    = _options.LlmModel,
+                Model = _options.LlmModel,
                 Messages = messages,
-                Stream   = false
+                Stream = false
             };
 
             ChatResponseStream? lastChunk = null;
@@ -67,7 +66,8 @@ public sealed class OllamaLlmService : ILlmService
         }
     }
 
-    public async Task<Result<LlmResponse>> ChatWithToolsAsync(string systemPrompt, string userMessage, IReadOnlyList<ToolDefinition> tools, CancellationToken ct = default)
+    public async Task<Result<LlmResponse>> ChatWithToolsAsync(string systemPrompt, string userMessage,
+        IReadOnlyList<ToolDefinition> tools, CancellationToken ct = default)
     {
         throw new NotImplementedException();
     }

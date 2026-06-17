@@ -15,13 +15,13 @@ namespace AiAssistant.Infrastructure.Qdrant;
 
 public class QdrantVectorStore : IVectorStore
 {
-    private readonly QdrantClient _qdrantClient;
-    private readonly QdrantOptions _options;
     private readonly ILogger<OllamaEmbeddingService> _logger;
+    private readonly QdrantOptions _options;
+    private readonly QdrantClient _qdrantClient;
 
     public QdrantVectorStore(
-        QdrantClient qdrantClient, 
-        IOptions<QdrantOptions> options, 
+        QdrantClient qdrantClient,
+        IOptions<QdrantOptions> options,
         ILogger<OllamaEmbeddingService> logger)
     {
         _qdrantClient = qdrantClient;
@@ -42,7 +42,7 @@ public class QdrantVectorStore : IVectorStore
             {
                 var point = new PointStruct
                 {
-                    Id      = Guid.Parse(c.Id.ToString()),
+                    Id = Guid.Parse(c.Id.ToString()),
                     Vectors = c.Embedding!,
                     Payload =
                     {
@@ -58,11 +58,9 @@ public class QdrantVectorStore : IVectorStore
 
                 pointsList.Add(point);
             }
-            
+
             if (pointsList.Count == 0)
-            {
                 return Result.Failure(Error.VectorStoreFailure("No valid chunks with embeddings to upsert."));
-            }
 
             await _qdrantClient.UpsertAsync(_options.CollectionName, pointsList, cancellationToken: cancellationToken);
 
@@ -72,10 +70,12 @@ public class QdrantVectorStore : IVectorStore
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to upsert chunks into Qdrant");
-            return Result.Failure(Error.VectorStoreFailure(ex.Message));        }
+            return Result.Failure(Error.VectorStoreFailure(ex.Message));
+        }
     }
 
-    public async Task<Result<IReadOnlyList<DocumentChunk>>> SearchAsync(float[] queryEmbedding, int topK = 5, CancellationToken cancellationToken = default)
+    public async Task<Result<IReadOnlyList<DocumentChunk>>> SearchAsync(float[] queryEmbedding, int topK = 5,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -86,27 +86,27 @@ public class QdrantVectorStore : IVectorStore
                 limit: (ulong)topK,
                 scoreThreshold: 0.6f,
                 cancellationToken: cancellationToken);
-            
+
             var chunks = results.Select(r => new DocumentChunk
             {
                 Id = ChunkId.From(r.Id.Uuid),
-                DocumentId =  DocumentId.From(GetString(r.Payload, "document_id")),
-                FileName    = r.Payload["file_name"].StringValue,
-                Content     = r.Payload["content"].StringValue,
-                ChunkIndex  = (int)r.Payload["chunk_index"].IntegerValue,
-                Metadata    = r.Payload
+                DocumentId = DocumentId.From(GetString(r.Payload, "document_id")),
+                FileName = r.Payload["file_name"].StringValue,
+                Content = r.Payload["content"].StringValue,
+                ChunkIndex = (int)r.Payload["chunk_index"].IntegerValue,
+                Metadata = r.Payload
                     .Where(kv => !new[] { "document_id", "file_name", "content", "chunk_index" }
                         .Contains(kv.Key))
                     .ToDictionary(kv => kv.Key, kv => kv.Value.StringValue)
             }).ToList();
-            
+
             return Result<IReadOnlyList<DocumentChunk>>.Success(chunks);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex,"Failed to search Qdrant chunks");
+            _logger.LogError(ex, "Failed to search Qdrant chunks");
             return Result<IReadOnlyList<DocumentChunk>>.Failure(Error.VectorStoreFailure(ex.Message));
-        }   
+        }
     }
 
     public async Task<Result> EnsureCollectionExistsAsync(CancellationToken cancellationToken = default)
@@ -114,7 +114,7 @@ public class QdrantVectorStore : IVectorStore
         try
         {
             _logger.LogInformation("Starting to ensure collection exists");
-            
+
             var collections = await _qdrantClient.ListCollectionsAsync(cancellationToken);
             if (collections.Any(c => c == _options.CollectionName))
                 return Result.Success();
@@ -125,9 +125,9 @@ public class QdrantVectorStore : IVectorStore
                 {
                     Size = (ulong)_options.VectorSize,
                     Distance = Distance.Cosine
-                }, 
+                },
                 cancellationToken: cancellationToken);
-            
+
             _logger.LogInformation("Created Qdrant collection: {CollectionName}", _options.CollectionName);
             return Result.Success();
         }
@@ -137,7 +137,7 @@ public class QdrantVectorStore : IVectorStore
             return Result.Failure(Error.VectorStoreFailure(ex.Message));
         }
     }
-    
+
     public async Task<Result> DeleteCollectionAsync(CancellationToken ct = default)
     {
         try
@@ -152,21 +152,28 @@ public class QdrantVectorStore : IVectorStore
             return Result.Failure(Error.VectorStoreFailure(ex.Message));
         }
     }
-    
-    private static string GetString(MapField<string, Value> payload, string key) =>
-        payload.TryGetValue(key, out var val) ? GetStringValue(val) : string.Empty;
 
-    private static long GetInteger(MapField<string, Value> payload, string key) =>
-        payload.TryGetValue(key, out var val) && val.KindCase == Value.KindOneofCase.IntegerValue
+    private static string GetString(MapField<string, Value> payload, string key)
+    {
+        return payload.TryGetValue(key, out var val) ? GetStringValue(val) : string.Empty;
+    }
+
+    private static long GetInteger(MapField<string, Value> payload, string key)
+    {
+        return payload.TryGetValue(key, out var val) && val.KindCase == Value.KindOneofCase.IntegerValue
             ? val.IntegerValue
             : 0;
+    }
 
-    private static string GetStringValue(Value val) => val.KindCase switch
+    private static string GetStringValue(Value val)
     {
-        Value.KindOneofCase.StringValue  => val.StringValue,
-        Value.KindOneofCase.IntegerValue => val.IntegerValue.ToString(),
-        Value.KindOneofCase.DoubleValue  => val.DoubleValue.ToString(CultureInfo.InvariantCulture),
-        Value.KindOneofCase.BoolValue    => val.BoolValue.ToString(),
-        _                                => string.Empty
-    };
+        return val.KindCase switch
+        {
+            Value.KindOneofCase.StringValue => val.StringValue,
+            Value.KindOneofCase.IntegerValue => val.IntegerValue.ToString(),
+            Value.KindOneofCase.DoubleValue => val.DoubleValue.ToString(CultureInfo.InvariantCulture),
+            Value.KindOneofCase.BoolValue => val.BoolValue.ToString(),
+            _ => string.Empty
+        };
+    }
 }

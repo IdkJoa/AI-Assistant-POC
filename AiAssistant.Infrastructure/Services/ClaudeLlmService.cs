@@ -13,42 +13,42 @@ namespace AiAssistant.Infrastructure.Services;
 
 public sealed class ClaudeLlmService : ILlmService
 {
-    private readonly ClaudeOptions _options;
     private readonly ILogger<ClaudeLlmService> _logger;
+    private readonly ClaudeOptions _options;
 
     public ClaudeLlmService(
         IOptions<ClaudeOptions> options,
         ILogger<ClaudeLlmService> logger)
     {
         _options = options.Value;
-        _logger  = logger;
+        _logger = logger;
     }
 
     public async Task<Result<string>> ChatAsync(
         string systemPrompt,
         string userMessage,
-        CancellationToken ct = default)
+        CancellationToken cancellationToken = default)
     {
         try
         {
-            var client  = new AnthropicClient(_options.ApiKey);
+            var client = new AnthropicClient(_options.ApiKey);
             var request = new MessageParameters
             {
-                Model     = _options.LlmModel,
+                Model = _options.LlmModel,
                 MaxTokens = 1024,
-                System    = [new SystemMessage(systemPrompt)],
-                Messages  =
+                System = [new SystemMessage(systemPrompt)],
+                Messages =
                 [
                     new Message
                     {
-                        Role    = RoleType.User,
+                        Role = RoleType.User,
                         Content = [new TextContent { Text = userMessage }]
                     }
                 ]
             };
 
-            var response = await client.Messages.GetClaudeMessageAsync(request, ct);
-            var content  = response.Content.OfType<TextContent>().FirstOrDefault()?.Text;
+            var response = await client.Messages.GetClaudeMessageAsync(request, cancellationToken);
+            var content = response.Content.OfType<TextContent>().FirstOrDefault()?.Text;
 
             if (string.IsNullOrWhiteSpace(content))
                 return Result<string>.Failure(Error.LlmFailure("Claude returned empty response."));
@@ -67,32 +67,32 @@ public sealed class ClaudeLlmService : ILlmService
         string systemPrompt,
         string userMessage,
         IReadOnlyList<ToolDefinition> tools,
-        CancellationToken ct = default)
+        CancellationToken cancellationToken = default)
     {
         try
         {
-            var client      = new AnthropicClient(_options.ApiKey);
+            var client = new AnthropicClient(_options.ApiKey);
             var claudeTools = ClaudeToolDefinitions.GetAll()
                 .Where(t => tools.Any(td => td.Name == t.Function.Name))
                 .ToList();
-            
+
             var request = new MessageParameters
             {
-                Model     = _options.LlmModel,
+                Model = _options.LlmModel,
                 MaxTokens = 2048,
-                System    = [new SystemMessage(systemPrompt)],
-                Tools     = claudeTools,
-                Messages  =
+                System = [new SystemMessage(systemPrompt)],
+                Tools = claudeTools,
+                Messages =
                 [
                     new Message
                     {
-                        Role    = RoleType.User,
+                        Role = RoleType.User,
                         Content = [new TextContent { Text = userMessage }]
                     }
                 ]
             };
 
-            var response = await client.Messages.GetClaudeMessageAsync(request, ct);
+            var response = await client.Messages.GetClaudeMessageAsync(request, cancellationToken);
 
             if (response.StopReason == "tool_use")
             {
@@ -101,7 +101,7 @@ public sealed class ClaudeLlmService : ILlmService
                     .Select(t => new ToolUseRequest
                     {
                         ToolUseId = t.Id,
-                        ToolName  = t.Name,
+                        ToolName = t.Name,
                         InputJson = t.Input?.ToString() ?? "{}"
                     })
                     .ToList();

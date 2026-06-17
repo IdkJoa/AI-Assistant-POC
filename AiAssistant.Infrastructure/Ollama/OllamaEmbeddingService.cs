@@ -4,39 +4,40 @@ using AiAssistant.Infrastructure.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OllamaSharp;
+using OllamaSharp.Models;
 
 namespace AiAssistant.Infrastructure.Ollama;
 
 public class OllamaEmbeddingService : IEmbeddingService
 {
     private readonly OllamaApiClient _apiClient;
-    private readonly OllamaOptions _options;
     private readonly ILogger<OllamaEmbeddingService> _logger;
+    private readonly OllamaOptions _options;
 
     public OllamaEmbeddingService(
-        OllamaApiClient apiClient, 
-        IOptions<OllamaOptions> options, 
+        OllamaApiClient apiClient,
+        IOptions<OllamaOptions> options,
         ILogger<OllamaEmbeddingService> logger)
     {
         _apiClient = apiClient;
         _options = options.Value;
         _logger = logger;
     }
-    
+
     public async Task<Result<float[]>> GenerateAsync(string text, CancellationToken cancellationToken = default)
     {
         try
         {
-            var response = await _apiClient.EmbedAsync(new OllamaSharp.Models.EmbedRequest
+            var response = await _apiClient.EmbedAsync(new EmbedRequest
             {
                 Model = _options.EmbeddingModel,
                 Input = [text]
             }, cancellationToken);
-            
+
             var embedding = response.Embeddings.FirstOrDefault();
 
-            return embedding is null or {Length: 0} 
-                ? Result<float[]>.Failure(Error.LlmFailure("Ollama returned empty EmbeddingResponse")) 
+            return embedding is null or { Length: 0 }
+                ? Result<float[]>.Failure(Error.LlmFailure("Ollama returned empty EmbeddingResponse"))
                 : Result<float[]>.Success(embedding);
         }
         catch (Exception ex)
